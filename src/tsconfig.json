@@ -1,0 +1,18 @@
+{
+    "extends": "../tsconfig.base.json",
+    "compilerOptions": {
+        "baseUrl": ".",
+        "outDir": "../dist",
+        "paths": {
+            "#lib/*": ["lib/*"],
+            "#utils/*": ["lib/util/*"]
+        },
+        "removeComments": true,
+        "rootDir": ".",
+        "skipLibCheck": true,
+        "tsBuildInfoFile": "../dist/.tsbuildinfo",
+        "allowJs": true
+    },
+    "include": [".", "./**/*.json"],
+    "exclude": ["./tsconfig.json"]
+}
