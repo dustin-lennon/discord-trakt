@@ -1,0 +1,21 @@
+{
+    "env": {
+        "target": {
+            "node": 20
+        }
+    },
+    "jsc": {
+        "parser": {
+            "syntax": "typescript",
+            "decorators": true
+        },
+        "transform": {
+            "legacyDecorator": true,
+            "decoratorMetadata": true
+        }
+    },
+    "module": {
+        "type": "es6"
+    },
+    "sourceMaps": "inline"
+}
