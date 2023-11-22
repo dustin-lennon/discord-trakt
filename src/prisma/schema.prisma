@@ -1,0 +1,33 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+generator studio-client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native"]
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DB_URL")
+}
+
+model User {
+  snowflake          BigInt               @id
+  TraktTVInformation TraktTVInformation[]
+
+  @@map("user")
+}
+
+model TraktTVInformation {
+  snowflake           BigInt
+  userId              BigInt  @map("user_id")
+  trakt_auth_code     String? @db.VarChar(12)
+  trakt_access_token  String? @db.VarChar(255)
+  trakt_refresh_token String? @db.VarChar(255)
+  user                User    @relation(fields: [userId], references: [snowflake], onDelete: Cascade)
+
+  @@id([snowflake, userId])
+  @@index([userId], map: "trakt_tv_information_user_id_fkey")
+  @@map("trakt_tv_information")
+}
