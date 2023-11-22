@@ -13,7 +13,11 @@
         "tsBuildInfoFile": "../dist/.tsbuildinfo",
         "allowJs": true,
         "composite": true,
-        "esModuleInterop": true
+        "esModuleInterop": true,
+        "typeRoots": [
+            "./typings",
+            "../node_modules/@types"
+        ]
     },
     "include": [".", "./**/*.json"],
     "exclude": ["./tsconfig.json"]

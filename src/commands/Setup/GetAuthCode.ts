@@ -1,9 +1,11 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { TRAKT_API_OPTIONS } from '#lib/setup';
 import { ApplyOptions } from '@sapphire/decorators';
 import { isMessageInstance } from '@sapphire/discord.js-utilities';
 import { Command } from '@sapphire/framework';
 import { Snowflake } from '@sapphire/snowflake';
-import { envParseString } from '@skyra/env-utilities';
-import { Trakt } from 'nodeless-trakt-ts';
+
+import Trakt from 'trakt.tv';
 
 @ApplyOptions<Command.Options>({
 	description: 'Get Trakt.tv Auth Token'
@@ -19,12 +21,7 @@ export class UserCommand extends Command {
 	}
 
 	public override async chatInputRun(interaction: Command.ChatInputCommandInteraction) {
-		const trakt = new Trakt({
-			client_id: envParseString('TRAKT_CLIENT'),
-			client_secret: envParseString('TRAKT_CLIENT_SECRET'),
-			endpoint: envParseString('TRAKT_API_URL'),
-			debug: envParseString('TRAKT_DEBUG')
-		});
+		const trakt = new Trakt(TRAKT_API_OPTIONS);
 
 		const msg = await interaction.reply({ content: `Obtaining authorization code...`, fetchReply: true, ephemeral: true });
 		const requestingUser = BigInt(interaction.user.id);
@@ -44,9 +41,9 @@ export class UserCommand extends Command {
 		});
 
 		if (isMessageInstance(msg)) {
-			const token = await trakt
+			await trakt
 				.get_codes()
-				.then(async (poll) => {
+				.then(async (poll: { user_code: any; verification_url: any }) => {
 					// console.log(`Poll: ${JSON.stringify(poll)}`);
 					const code = poll?.user_code;
 
@@ -83,14 +80,13 @@ export class UserCommand extends Command {
 					}
 
 					interaction.editReply(
-						`Use the following code to authorize ${this.container.client.user?.username} to access your account \`${code}\` at ${verificationUrl}`
+						`Open the URL ${verificationUrl} and type the code \`${code}\` to authorize ${this.container.client.user?.username}`
 					);
 
 					// verify if app was authorized
-					const authToken = await trakt.poll_access(poll);
-					console.log(`Auth Token: `, authToken);
+					return trakt.poll_access(poll);
 				})
-				.catch(async (error) => {
+				.catch(async (error: { statusCode: any }) => {
 					let errorMsg;
 
 					switch (error.statusCode) {
@@ -119,9 +115,24 @@ export class UserCommand extends Command {
 					return errorMsg;
 				});
 
-			interaction.followUp(`Trakt Access Token: ${JSON.stringify(token)}`);
+			const exportedToken = trakt.export_token();
 
-			console.log(`Trakt Access Token: ${JSON.stringify(token)}`);
+			// Add access_token, refresh_token, and expire time
+			await this.container.prisma.traktTVInformation.update({
+				where: {
+					snowflake_userId: {
+						snowflake: BigInt(userAuthCode!.snowflake),
+						userId: BigInt(userAuthCode!.userId)
+					}
+				},
+				data: {
+					trakt_access_token: exportedToken.access_token,
+					trakt_refresh_token: exportedToken.refresh_token,
+					trakt_access_token_expire: exportedToken.expires
+				}
+			});
+
+			return interaction.followUp(`Logged in!`);
 		} else {
 			return interaction.editReply('Failed to obtain an authorization code...');
 		}

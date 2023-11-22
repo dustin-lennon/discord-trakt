@@ -92,6 +92,13 @@ export const CLIENT_OPTIONS: ClientOptions = {
 	sentry: parseSentryOptions()
 };
 
+export const TRAKT_API_OPTIONS = {
+	client_id: envParseString('TRAKT_CLIENT'),
+	client_secret: envParseString('TRAKT_CLIENT_SECRET'),
+	api_url: envParseString('TRAKT_API_URL'),
+	debug: envParseString('TRAKT_DEBUG')
+};
+
 declare module '@sapphire/pieces' {
 	interface Container {
 		prisma: typeof prisma;
