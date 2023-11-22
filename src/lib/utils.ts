@@ -4,6 +4,8 @@ import { send } from '@sapphire/plugin-editable-commands';
 import { cyan } from 'colorette';
 import { EmbedBuilder, type APIUser, type Guild, type Message, type User } from 'discord.js';
 import { RandomLoadingMessage } from '#lib/constants';
+import { captureException, withScope } from '@sentry/node';
+import { ErrorDefaultSentryScope, ErrorHandlerOptions } from './types.js';
 
 /**
  * Picks a random item from an array
@@ -60,4 +62,26 @@ function getAuthorInfo(author: User | APIUser) {
 function getGuildInfo(guild: Guild | null) {
 	if (guild === null) return 'Direct Messages';
 	return `${guild.name}[${cyan(guild.id)}]`;
+}
+
+export function logErrorToContainer({ error, loggerSeverityLevel }: Pick<ErrorHandlerOptions, 'error' | 'loggerSeverityLevel'>): void {
+	container.logger[loggerSeverityLevel](error);
+}
+
+export function defaultScope({ scope, error, sentrySeverityLevel }: ErrorDefaultSentryScope) {
+	scope.setFingerprint([error.name, error.message]), scope.setTransactionName(error.name), scope.setLevel(sentrySeverityLevel);
+
+	return captureException(error);
+}
+
+export function captureCommandErrorToSentry({ interaction, error, sentrySeverityLevel }: Omit<ErrorHandlerOptions, 'loggerSeverityLevel'>): void {
+	return withScope((scope) => {
+		scope.setTags({
+			channelId: interaction.channelId,
+			guildId: interaction.guildId,
+			userId: interaction.member?.user.id ?? interaction.user.id
+		});
+
+		return defaultScope({ error, scope, sentrySeverityLevel });
+	});
 }
