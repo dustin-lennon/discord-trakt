@@ -132,7 +132,7 @@ export class UserCommand extends Command {
 				}
 			});
 
-			return interaction.followUp(`Logged in!`);
+			return interaction.followUp({ content: `Logged in!`, ephemeral: true });
 		} else {
 			return interaction.editReply('Failed to obtain an authorization code...');
 		}

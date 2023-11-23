@@ -1,4 +1,5 @@
 import { ApplyOptions } from '@sapphire/decorators';
+import { isMessageInstance } from '@sapphire/discord.js-utilities';
 import { Command } from '@sapphire/framework';
 
 @ApplyOptions<Command.Options>({
@@ -15,9 +16,15 @@ export class UserCommand extends Command {
 	}
 
 	public override async chatInputRun(interaction: Command.ChatInputCommandInteraction) {
-		// Reload all commands
-		this.applicationCommandRegistry.command?.reload();
+		const msg = await interaction.reply({ content: 'Reloading commands...', fetchReply: true });
 
-		return interaction.reply('Reloading commands...');
+		if (isMessageInstance(msg)) {
+			// Reload all commands
+			this.applicationCommandRegistry.command?.reload();
+
+			return interaction.editReply('Commands have been reloaded!');
+		}
+
+		return interaction.editReply('Failed to retrieve ping...');
 	}
 }
