@@ -6,7 +6,7 @@ import { Command } from '@sapphire/framework';
 	description: 'Reload all slash commands',
 	preconditions: ['OwnerOnly']
 })
-export class UserCommand extends Command {
+export class SlashCommand extends Command {
 	public override registerApplicationCommands(registry: Command.Registry) {
 		registry.registerChatInputCommand((builder) => {
 			builder //

@@ -5,7 +5,7 @@ import { Command } from '@sapphire/framework';
 @ApplyOptions<Command.Options>({
 	description: 'Returns the round trip and heartbeat'
 })
-export class UserCommand extends Command {
+export class SlashCommand extends Command {
 	public override registerApplicationCommands(registry: Command.Registry) {
 		registry.registerChatInputCommand((builder) => {
 			builder //

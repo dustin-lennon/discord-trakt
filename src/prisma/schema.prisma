@@ -20,13 +20,12 @@ model User {
 }
 
 model TraktTVInformation {
-  snowflake                 BigInt
-  userId                    BigInt  @map("user_id")
-  trakt_auth_code           String? @db.VarChar(12)
-  trakt_access_token        String? @db.VarChar(255)
-  trakt_refresh_token       String? @db.VarChar(255)
-  trakt_access_token_expire BigInt? @db.BigInt()
-  user                      User    @relation(fields: [userId], references: [snowflake], onDelete: Cascade)
+  snowflake     BigInt
+  userId        BigInt  @map("user_id")
+  access_token  String? @db.VarChar(255)
+  refresh_token String? @db.VarChar(255)
+  expires       BigInt? @db.BigInt()
+  user          User    @relation(fields: [userId], references: [snowflake], onDelete: Cascade)
 
   @@id([snowflake, userId])
   @@index([userId], map: "trakt_tv_information_user_id_fkey")

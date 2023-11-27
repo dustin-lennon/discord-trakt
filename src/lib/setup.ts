@@ -16,6 +16,8 @@ import { Integrations, NodeOptions } from '@sentry/node';
 import { RewriteFrames } from '@sentry/integrations';
 import '@kaname-png/plugin-sentry';
 import { PrismaClient } from '@prisma/client';
+import Trakt from 'trakt.tv';
+import Images from 'trakt.tv-images';
 
 // Set default behavior to bulk overwrite
 ApplicationCommandRegistries.setDefaultBehaviorWhenNotIdentical(RegisterBehavior.BulkOverwrite);
@@ -96,12 +98,27 @@ export const TRAKT_API_OPTIONS = {
 	client_id: envParseString('TRAKT_CLIENT'),
 	client_secret: envParseString('TRAKT_CLIENT_SECRET'),
 	api_url: envParseString('TRAKT_API_URL'),
+	pagination: true,
+	plugins: {
+		images: Images
+	},
+	options: {
+		images: {
+			tvdbApiKey: envParseString('TVDB_API_KEY'),
+			tmdbApiKey: envParseString('TMDB_API_KEY'),
+			smallerImages: true
+		}
+	},
 	debug: envParseString('TRAKT_DEBUG')
 };
+
+const trakt = new Trakt(TRAKT_API_OPTIONS);
+container.trakt = trakt;
 
 declare module '@sapphire/pieces' {
 	interface Container {
 		prisma: typeof prisma;
+		trakt: typeof trakt;
 	}
 }
 
@@ -118,5 +135,7 @@ declare module '@skyra/env-utilities' {
 		DB_DATABASE: string;
 		DB_PASSWORD: string;
 		DB_URL: string;
+		TVDB_API_KEY: string;
+		TMDB_API_KEY: string;
 	}
 }

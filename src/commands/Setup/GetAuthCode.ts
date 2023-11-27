@@ -1,16 +1,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { TRAKT_API_OPTIONS } from '#lib/setup';
 import { ApplyOptions } from '@sapphire/decorators';
 import { isMessageInstance } from '@sapphire/discord.js-utilities';
 import { Command } from '@sapphire/framework';
 import { Snowflake } from '@sapphire/snowflake';
 
-import Trakt from 'trakt.tv';
-
 @ApplyOptions<Command.Options>({
 	description: 'Get Trakt.tv Auth Token'
 })
-export class UserCommand extends Command {
+export class SlashCommand extends Command {
 	public override registerApplicationCommands(registry: Command.Registry) {
 		registry.registerChatInputCommand((builder) => {
 			builder //
@@ -21,10 +18,10 @@ export class UserCommand extends Command {
 	}
 
 	public override async chatInputRun(interaction: Command.ChatInputCommandInteraction) {
-		const trakt = new Trakt(TRAKT_API_OPTIONS);
-
 		const msg = await interaction.reply({ content: `Obtaining authorization code...`, fetchReply: true, ephemeral: true });
 		const requestingUser = BigInt(interaction.user.id);
+
+		let uniqueId;
 
 		await this.container.prisma.user.upsert({
 			where: { snowflake: requestingUser },
@@ -32,19 +29,10 @@ export class UserCommand extends Command {
 			update: { snowflake: requestingUser }
 		});
 
-		// Does the user have an auth code already? - update it if they do
-		const userAuthCode = await this.container.prisma.traktTVInformation.findFirst({
-			where: {
-				userId: requestingUser,
-				trakt_auth_code: { not: null }
-			}
-		});
-
 		if (isMessageInstance(msg)) {
-			await trakt
+			await this.container.trakt
 				.get_codes()
 				.then(async (poll: { user_code: any; verification_url: any }) => {
-					// console.log(`Poll: ${JSON.stringify(poll)}`);
 					const code = poll?.user_code;
 
 					// Address to input auth code
@@ -53,38 +41,18 @@ export class UserCommand extends Command {
 					// create a snowflake
 					const epoch = new Date();
 					const snowflake = new Snowflake(epoch);
-					const uniqueId = snowflake.generate();
+					uniqueId = snowflake.generate();
 
-					// If the user already exists update the auth code
-					if (userAuthCode?.trakt_auth_code) {
-						await this.container.prisma.traktTVInformation.update({
-							where: {
-								snowflake_userId: {
-									snowflake: BigInt(userAuthCode!.snowflake),
-									userId: BigInt(userAuthCode!.userId)
-								}
-							},
-							data: {
-								trakt_auth_code: code
-							}
-						});
-					} else {
-						// Add the auth code to the current user
-						await this.container.prisma.traktTVInformation.create({
-							data: {
-								snowflake: uniqueId,
-								userId: requestingUser,
-								trakt_auth_code: code
-							}
-						});
-					}
-
-					interaction.editReply(
+					await interaction.editReply(
 						`Open the URL ${verificationUrl} and type the code \`${code}\` to authorize ${this.container.client.user?.username}`
 					);
 
 					// verify if app was authorized
-					return trakt.poll_access(poll);
+					return this.container.trakt.poll_access(poll);
+					// return {
+					// 	pollData: this.container.trakt.poll_access(poll),
+					// 	uniquId: uniqueId
+					// };
 				})
 				.catch(async (error: { statusCode: any }) => {
 					let errorMsg;
@@ -115,26 +83,41 @@ export class UserCommand extends Command {
 					return errorMsg;
 				});
 
-			const exportedToken = trakt.export_token();
+			const exportedToken = await this.container.trakt.export_token();
+
+			let userAuthCode!: {
+				snowflake: bigint;
+				userId: bigint;
+				access_token: string | null;
+				refresh_token: string | null;
+				expires: bigint | null;
+			};
 
 			// Add access_token, refresh_token, and expire time
-			await this.container.prisma.traktTVInformation.update({
+			await this.container.prisma.traktTVInformation.upsert({
 				where: {
 					snowflake_userId: {
-						snowflake: BigInt(userAuthCode!.snowflake),
-						userId: BigInt(userAuthCode!.userId)
+						snowflake: BigInt(userAuthCode?.snowflake ?? uniqueId),
+						userId: BigInt(userAuthCode?.userId ?? requestingUser)
 					}
 				},
-				data: {
-					trakt_access_token: exportedToken.access_token,
-					trakt_refresh_token: exportedToken.refresh_token,
-					trakt_access_token_expire: exportedToken.expires
+				create: {
+					snowflake: BigInt(userAuthCode?.snowflake ?? uniqueId),
+					userId: BigInt(userAuthCode?.userId ?? requestingUser),
+					refresh_token: exportedToken.refresh_token,
+					expires: exportedToken.expires,
+					access_token: exportedToken.access_token
+				},
+				update: {
+					refresh_token: exportedToken.refresh_token,
+					expires: exportedToken.expires,
+					access_token: exportedToken.access_token
 				}
 			});
 
-			return interaction.followUp({ content: `Logged in!`, ephemeral: true });
+			return await interaction.followUp({ content: `Logged in!`, ephemeral: true });
 		} else {
-			return interaction.editReply('Failed to obtain an authorization code...');
+			return await interaction.editReply('Failed to obtain an authorization code...');
 		}
 	}
 }
